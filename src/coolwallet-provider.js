@@ -9,6 +9,23 @@ if (NODE_JS) {
 }
 
 const PROTOCOL = 'coolwallet';
+const REQUEST_TIMEOUT = 120000;
+
+function addEventListener(target, event, handler) {
+  if (target.addEventListener) {
+    target.addEventListener(event, handler);
+  } else {
+    target.attachEvent('on' + event, handler);
+  }
+}
+
+function removeEventListener(target, event, handler) {
+  if (target.removeEventListener) {
+    target.removeEventListener(event, handler);
+  } else {
+    target.detachEvent('on' + event, handler);
+  }
+}
 
 function CoolwalletProvider(options) {
   options = options || {};
@@ -24,6 +41,7 @@ function CoolwalletProvider(options) {
   this.getAccounts = this.getAccounts.bind(this);
   this.signMessage = this.signMessage.bind(this);
   this.signTransaction = this.signTransaction.bind(this);
+  this.onBlur = this.onBlur.bind(this);
   this.session = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
   this.socket = io(this.relayHost, { query: `session=${this.session}` });
   this.socket.on('message', this.onMessage.bind(this));
@@ -34,6 +52,11 @@ function CoolwalletProvider(options) {
     this.ok = document.createElement('a');
     this.ok.innerHTML = 'Open CoolWallet';
     this.ok.className = 'ok';
+    this.ok.onclick = function () {
+      this.openTimer = setTimeout(function () {
+        this.cancel();
+      }.bind(this), 1000);
+    }.bind(this);
     const cancel = document.createElement('a');
     cancel.innerHTML = 'Cancel';
     cancel.className = 'cancel';
@@ -45,8 +68,13 @@ function CoolwalletProvider(options) {
     this.iframe.style.display = 'none';
     document.body.appendChild(this.iframe);
     document.body.appendChild(this.div);
+    addEventListener(window, 'blur', this.onBlur);
   }
 }
+
+CoolwalletProvider.prototype.onBlur = function () {
+  clearTimeout(this.openTimer);
+};
 
 CoolwalletProvider.prototype.onMessage = function (message) {
   let job;
@@ -102,6 +130,10 @@ CoolwalletProvider.prototype.getAccounts = function (callback) {
     this.request('getAccounts', function (error, result) {
       if (!error) {
         self.accounts = result;
+        if (WINDOW) {
+          delete self.ok.onclick;
+          removeEventListener(window, 'blur', this.onBlur);
+        }
       }
       callback(error, result);
     });
@@ -146,12 +178,12 @@ CoolwalletProvider.prototype.dequeue = function () {
   this.requests[job.requestId] = job;
   job.params.callback = this.createCallbackUrl(job.requestId);
   job.uri = this.createUri(job.params);
-  job.timeout = setTimeout(() => {
+  job.timeout = setTimeout(function () {
     delete this.requests[job.requestId];
     this.processing = false;
     this.div.style.display = 'none';
     job.callback(new Error('request timeout'), null);
-  }, 600000);
+  }.bind(this), REQUEST_TIMEOUT);
   this.currentJob = job;
   if (root.COOLWALLET_PROVIDER_URI_HANDLER) {
     root.COOLWALLET_PROVIDER_URI_HANDLER(job);
@@ -185,7 +217,7 @@ CoolwalletProvider.prototype.createCallbackUrl = function (requestId) {
 };
 
 CoolwalletProvider.prototype.stop = function () {
-  console.log('stop');
+  this.cancel();
   if (this.socket) {
     this.socket.close();
     this.socket = null;
@@ -207,14 +239,14 @@ CoolwalletProvider.prototype.cancel = function () {
   this.div.style.display = 'none';
 };
 
- function createCoolwalletProvider(options) {
+function createCoolwalletProvider(options) {
   const collwalletProvider = new CoolwalletProvider(options);
   let timer;
   const startTimer = function (provider) {
     if (timer) {
       return;
     }
-    timer = setInterval(() => {
+    timer = setInterval(function () {
       if (!provider.engine._blockTracker._isRunning) {
         clearInterval(timer);
         timer = null;
