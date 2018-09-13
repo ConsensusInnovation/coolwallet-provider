@@ -10,6 +10,7 @@ if (NODE_JS) {
 
 const PROTOCOL = 'coolwallet';
 const REQUEST_TIMEOUT = 120000;
+const OPEN_TIMEOUT = 3000;
 
 function addEventListener(target, event, handler) {
   if (target.addEventListener) {
@@ -55,7 +56,7 @@ function CoolwalletProvider(options) {
     this.ok.onclick = function () {
       this.openTimer = setTimeout(function () {
         this.cancel();
-      }.bind(this), 1000);
+      }.bind(this), OPEN_TIMEOUT);
     }.bind(this);
     const cancel = document.createElement('a');
     cancel.innerHTML = 'Cancel';
