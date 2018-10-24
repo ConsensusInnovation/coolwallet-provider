@@ -10,7 +10,7 @@ if (NODE_JS) {
 
 const PROTOCOL = 'coolwallet';
 const REQUEST_TIMEOUT = 120000;
-const OPEN_TIMEOUT = 3000;
+const OPEN_TIMEOUT = 5000;
 
 function addEventListener(target, event, handler) {
   if (target.addEventListener) {
@@ -127,17 +127,17 @@ CoolwalletProvider.prototype.getAccounts = function (callback) {
   if (this.accounts) {
     callback(null, [].concat(this.accounts));
   } else {
-    const self = this;
     this.request('getAccounts', function (error, result) {
       if (!error) {
-        self.accounts = result;
+        this.accounts = result;
+        clearTimeout(this.openTimer);
         if (WINDOW) {
-          delete self.ok.onclick;
+          delete this.ok.onclick;
           removeEventListener(window, 'blur', this.onBlur);
         }
       }
       callback(error, result);
-    });
+    }.bind(this));
   }
 };
 
@@ -226,6 +226,7 @@ CoolwalletProvider.prototype.stop = function () {
   if (WINDOW) {
     document.body.removeChild(this.iframe);
     this.iframe = null;
+    removeEventListener(window, 'blur', this.onBlur);
   }
 };
 
