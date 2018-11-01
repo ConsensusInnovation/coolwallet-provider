@@ -8,6 +8,12 @@ if (NODE_JS) {
   root = global;
 }
 
+// Error code
+// 0000: 使用者取消
+// 0001: 錢包未發現地址
+// 9999: 其他錯誤
+// 10000: Timeout
+
 const PROTOCOL = 'coolwallet';
 const REQUEST_TIMEOUT = 120000;
 const OPEN_TIMEOUT = 5000;
@@ -73,6 +79,12 @@ function CoolwalletProvider(options) {
   }
 }
 
+CoolwalletProvider.prototype.createError = function (message, code) {
+  const e = new Error(message);
+  e.code = code;
+  return e;
+};
+
 CoolwalletProvider.prototype.onBlur = function () {
   clearTimeout(this.openTimer);
 };
@@ -92,9 +104,7 @@ CoolwalletProvider.prototype.onMessage = function (message) {
     }
     clearTimeout(job.timeout);
     if (message.error) {
-      const error = new Error(message.result);
-      error.code = message.error;
-      job.callback(error, null);
+      job.callback(this.createError(message.result, message.error), null);
     } else {
       if (job.params.action === 'signMessage') {
         message.result = `0x${message.result}`;
@@ -183,7 +193,7 @@ CoolwalletProvider.prototype.dequeue = function () {
     delete this.requests[job.requestId];
     this.processing = false;
     this.div.style.display = 'none';
-    job.callback(new Error('request timeout'), null);
+    job.callback(this.createError('request timeout', '10000'), null);
   }.bind(this), REQUEST_TIMEOUT);
   this.currentJob = job;
   if (root.COOLWALLET_PROVIDER_URI_HANDLER) {
@@ -237,7 +247,7 @@ CoolwalletProvider.prototype.cancel = function () {
   const job = this.currentJob;
   delete this.requests[job.requestId];
   this.processing = false;
-  job.callback(new Error('cancelled'), null);
+  job.callback(this.createError('cancelled', '0000'), null);
   this.div.style.display = 'none';
 };
 
