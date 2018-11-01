@@ -16,7 +16,7 @@ if (NODE_JS) {
 
 const PROTOCOL = 'coolwallet';
 const REQUEST_TIMEOUT = 120000;
-const OPEN_TIMEOUT = 5000;
+const OPEN_TIMEOUT = 10000;
 
 function addEventListener(target, event, handler) {
   if (target.addEventListener) {
@@ -142,6 +142,7 @@ CoolwalletProvider.prototype.getAccounts = function (callback) {
         this.accounts = result;
         clearTimeout(this.openTimer);
         if (WINDOW) {
+          this.ok.onclick = null;
           delete this.ok.onclick;
           removeEventListener(window, 'blur', this.onBlur);
         }
