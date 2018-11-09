@@ -128,7 +128,9 @@ CoolwalletProvider.prototype.checkReady = function () {
   if (this.socket.connected) {
     return true;
   }
+  this.waiting = true;
   this.socket.once('connect', function () {
+    this.waiting = false;
     this.dequeue();
   }.bind(this));
 };
@@ -165,6 +167,10 @@ CoolwalletProvider.prototype.signTransaction = function (tx, callback) {
 };
 
 CoolwalletProvider.prototype.request = function (action, callback, params) {
+  if (this.waiting) {
+    callback(this.createError('Please wait for reconnecting', '10001'), null);
+    return;
+  }
   const requestId = this.requestId++;
   params = params || {};
   params.action = action;
@@ -195,6 +201,7 @@ CoolwalletProvider.prototype.dequeue = function () {
     this.processing = false;
     this.div.style.display = 'none';
     job.callback(this.createError('request timeout', '10000'), null);
+    this.dequeue();
   }.bind(this), REQUEST_TIMEOUT);
   this.currentJob = job;
   if (root.COOLWALLET_PROVIDER_URI_HANDLER) {
@@ -250,6 +257,7 @@ CoolwalletProvider.prototype.cancel = function () {
   this.processing = false;
   job.callback(this.createError('cancelled', '0000'), null);
   this.div.style.display = 'none';
+  this.dequeue();
 };
 
 function createCoolwalletProvider(options) {
