@@ -106,7 +106,7 @@ CoolwalletProvider.prototype.onMessage = function (message) {
     if (message.error) {
       job.callback(this.createError(message.result, message.error), null);
     } else {
-      if (job.params.action === 'signMessage') {
+      if (job.params.action === 'signMessage' && message.result.indexOf('0x') === -1) {
         message.result = `0x${message.result}`;
       }
       job.callback(null, message.result);
